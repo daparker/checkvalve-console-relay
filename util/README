@@ -1,0 +1,127 @@
+This directory contains utilities for testing the CheckValve Console Relay.
+This utility set currently contains a UDP message emitter and a console message
+logger.
+
+--------------------------------------------------------------------------------
+1. Perl vs. Java
+--------------------------------------------------------------------------------
+
+Each utility is provided as both a Perl script and compiled Java class.  The
+Perl and Java versions of each program take the same command-line options and
+are functionally equivalent, so it is purely a matter of personal preference
+which one you use.  (On most Linux systems, the Perl scripts may be a better
+choice because they will use fewer resources than the Java versions).
+
+You may need to make the Perl scripts executable prior to running them.  To do
+this, run the following commands:
+
+    chmod +x udp_message_emitter.pl
+    chmod +x console_logger.pl
+
+NOTE: The Java classes do not need to be executable.
+
+--------------------------------------------------------------------------------
+2. UDP Message Emitter (version 2.0)
+--------------------------------------------------------------------------------
+
+You can the invoke the UDP message emitter using the Perl version:
+
+    ./udp_message_emitter.pl
+
+Or the Java version:
+
+    java UDPMessageEmitter
+
+Either command will launch the message emitter with its default settings.  To
+change the settings, you can use one or more of the options below:
+
+    -t | --to <ip>:<port>    Send messages to the listener at the specified IP
+                             and port (default = 127.0.0.1:12345)
+
+    -f | --from <ip>:<port>  Send messages from the specified IP and port
+                             (default = 127.0.0.1:2345)
+
+    -d | --delay <num>       Send a message every <num> seconds
+                             (default = 1)
+
+    -l | --limit <num>       Stop after sending <num> messages
+                             (default = no limit)
+
+    -m | --message <string>  Send <string> as the message text
+                             (default = "This is a test!")
+
+    -s | --sayteam           Make this a say_team message
+                             (default = say)
+
+    -c | --console           Make this a SRCDS console message
+
+    -h | --help              Show this help text and exit
+
+NOTE: When using the --from option, the address must be assigned to an available
+      network interface.
+
+Running the UDP message emitter with the default values is the same as executing
+this command:
+
+    ./udp_message_emitter -t 127.0.0.1:12345 -f 127.0.0.1:2345 -d 1 -l 0 \
+        -m "This is a test!"
+
+    ... or ...
+
+    java UDPMessageEmitter -t 127.0.0.1:12345 -f 127.0.0.1:2345 -d 1 -l 0 \
+        -m "This is a test!"
+
+--------------------------------------------------------------------------------
+3. Console Logger (version 1.0)
+--------------------------------------------------------------------------------
+
+The console logger will connect to a CheckValve Console Relay server and print
+the relayed messages to the console.
+
+You can the invoke the console logger using the Perl version:
+
+    ./console_logger.pl
+
+Or the Java version:
+
+    java ConsoleLogger
+
+Either command will launch the console logger; however, you MUST specify some
+options in order for it to work.  You can use any of the options below:
+
+    -c | --console-relay <ip>:<port>  Connect to the CheckValve Console Relay at
+                                      the specified IP and port (required).
+
+    -g | --game-server <ip>:<port>    Request console messages from the game
+                                      server at the specified IP and port
+                                      (required).
+
+    -l | --limit <num>                Stop the console logger after receiving
+                                      <num> messages.
+
+    -p | --password <password>        Specify the CheckValve Console Relay
+                                      password.
+
+    -q | --quiet                      Operate in quiet mode, suppress most
+                                      messages.
+
+    -h | --help                       Show this help text and exit.
+
+Perl example:
+
+    ./console_logger.pl -c 127.0.0.1:23456 -g 127.0.0.1:27015 -l 5 \
+	-p MyPaSsWoRd -q
+
+Java example:
+
+    java ConsoleLogger -c 127.0.0.1:23456 -g 127.0.0.1:27015 -l 5 \
+	-p MyPaSsWoRd -q
+
+Each of the examples above will connect to the CheckValve Console Relay
+listening on 127.0.0.1:23456 and print messages relayed from the game server
+running on 127.0.0.1:27015, stopping after 5 messages have been logged. 
+
+NOTE: Console messages will be printed to the console. You must redirect the
+      output of the console logger to a file if you want to capture console
+      messages.
+

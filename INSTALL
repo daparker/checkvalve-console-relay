@@ -1,0 +1,46 @@
+INSTALLATION:
+
+In the steps below, please use the following substitutions:
+
+* Replace <INSTALL_PATH> with the actual path under which you
+  are installing the Console Relay (ex: /usr/local).
+
+* Replace VERSION with the version number (ex: 1.2.0)
+
+* Replace XYZ with "amd64", "i586", or "noarch" depending on which file
+  you downloaded.
+
+1. Extract the tar file:
+
+    cd <INSTALL_PATH>
+    tar -zxvf checkvalveconsolerelay-VERSION-linux-XYZ.tar.gz
+
+2. Edit the following scripts and set the value of the BASEDIR variable in each:
+
+    <INSTALL_PATH>/checkvalveconsolerelay-VERSION/bin/start.sh
+    <INSTALL_PATH>/checkvalveconsolerelay-VERSION/bin/stop.sh
+    <INSTALL_PATH>/checkvalveconsolerelay-VERSION/etc/init.d/checkvalveconsolerelay
+
+3. Optionally set the CONFIG_FILE variable in one of these scripts:
+
+    <INSTALL_PATH>/checkvalveconsolerelay-VERSION/bin/start.sh
+    <INSTALL_PATH>/checkvalveconsolerelay-VERSION/etc/init.d/checkvalveconsolerelay
+
+    NOTE: This is only necessary if you wish to run the CheckValve Console Relay
+          with a properties file other than the default.
+
+4. Edit the properties file to configure the Console Relay (by default this is
+   <INSTALL_PATH>/checkvalveconsolerelay-VERSION/checkvalveconsolerelay.properties)
+
+5. Start the console relay:
+
+    cd <INSTALL_PATH>/checkvalveconsolerelay-VERSION/etc/init.d
+    ./checkvalveconsolerelay start
+
+6. If you would like the Console Relay to start when the system boots, run the
+   following as root (or use 'sudo'):
+
+    cd <INSTALL_PATH>/checkvalveconsolerelay-VERSION/etc/init.d
+    cp checkvalveconsolerelay /etc/init.d
+    insserv checkvalveconsolerelay
+

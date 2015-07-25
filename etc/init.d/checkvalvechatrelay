@@ -1,0 +1,149 @@
+#!/bin/bash
+##
+#
+# Copyright 2010-2013 by David A. Parker <parker.david.a@gmail.com>
+# 
+# This file is part of CheckValve, an HLDS/SRCDS query app for Android.
+# 
+# CheckValve is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation.
+# 
+# CheckValve is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with the CheckValve source code.  If not, see
+# <http://www.gnu.org/licenses/>.
+#
+##
+
+##
+#
+# PROGRAM:
+# checkvalveconsolerelay
+#
+# DESCRIPTION:
+# Init script for starting/stopping CheckValve Console Relay.
+#
+# AUTHOR:
+# Dave Parker
+#
+# CHANGE LOG:
+#
+# April 7, 2015
+# - Initial release.
+#
+
+### BEGIN INIT INFO
+# Provides:          checkvalveconsolerelay
+# Required-Start:    $local_fs $network
+# Required-Stop:
+# Default-Start:     2 3 4 5 S
+# Default-Stop:      0 1 6
+# Short-Description: CheckValve Console Relay
+# Description:       CheckValve Console Relay
+### END INIT INFO
+
+BASEDIR="/home/dparker/checkvalveconsolerelay-1.0.0"
+JARFILE="${BASEDIR}/lib/checkvalveconsolerelay.jar"
+PIDFILE="${BASEDIR}/checkvalveconsolerelay.pid"
+START="${BASEDIR}/bin/start.sh"
+STOP="${BASEDIR}/bin/stop.sh"
+
+##
+#
+# Set $CONFIG_FILE if you wish to use a configuration file
+# other than the default (checkvalveconsolerelay.properties)
+#
+#CONFIG_FILE=
+
+usage()
+{
+    echo
+    echo "Usage: $0 {start|stop|restart|status}"
+    echo
+}
+
+status()
+{
+    ACTUAL_PID=$(ps -ef | grep -w ${JARFILE} 2>/dev/null | grep -m1 -v grep | awk '{print $2}')
+ 
+    if [ ! -z ${ACTUAL_PID} ] ; then
+        echo
+        echo "CheckValve Console Relay is running."
+        echo
+        exit 0
+    else
+        echo
+        echo "CheckValve Console Relay is not running."
+        echo
+        exit 1
+    fi
+}
+
+if [ ! -d ${BASEDIR} ] ; then
+    echo
+    echo "ERROR: The directory ${BASEDIR} does not exist."
+    echo "       Fix by setting \$BASEDIR in ${0}."
+    echo
+    exit 1
+fi
+
+if [ ! -f ${START} ] ; then
+    echo
+    echo "ERROR: ${START} does not exist."
+    echo
+    exit 1
+fi
+
+if [ ! -x ${START} ] ; then
+    echo
+    echo "ERROR: ${START} is not executable."
+    echo
+    exit 1
+fi
+
+if [ ! -f ${STOP} ] ; then
+    echo
+    echo "ERROR: ${STOP} does not exist."
+    echo
+    exit 1
+fi
+
+if [ ! -x ${STOP} ] ; then
+    echo
+    echo "ERROR: ${STOP} is not executable."
+    echo
+    exit 1
+fi
+
+if [ ! -z "${CONFIG_FILE}" ] ; then
+    START="${START} --config ${CONFIG_FILE}"
+fi
+
+cd ${BASEDIR} || exit 1
+
+case "$1" in
+    'start')
+        ${START}
+        ;;
+    'stop')
+        ${STOP}
+        ;;
+    'restart')
+        ${STOP}
+        sleep 2
+        ${START}
+        ;;
+    'status')
+        status
+        ;;
+    *)
+        usage
+        ;;
+esac
+
+exit 0
