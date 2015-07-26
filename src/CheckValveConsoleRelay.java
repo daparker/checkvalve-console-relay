@@ -32,6 +32,11 @@
  * April 7, 2015
  * - Version 1.0.0.
  * - Initial release.
+ *
+ * July 25, 2015
+ * - Version 1.1.0
+ * - Added control listener
+ * - Fixed default ports not matching config file
  */
 
 package com.dparker.apps.checkvalve;
@@ -75,6 +80,7 @@ public class CheckValveConsoleRelay
 
     static int messageListenPort = 0;
     static int clientListenPort = 0;
+    static int controlListenPort = 0;
     static int numClients = 0;
     static int maxClients = 0;
     static int logStatsEnabled = 0;
@@ -235,6 +241,7 @@ public class CheckValveConsoleRelay
         // Create threads
         final Thread tcpListenerThread = new Thread(new ClientListener());
         final Thread udpListenerThread = new Thread(new MessageListener());
+        final Thread ctlListenerThread = new Thread(new ControlListener());
         final Thread sendConsoleMessageThread = new Thread(new SendConsoleMessage());
         final Thread checkConnectionThread = new Thread(new CheckConnection());
         final Thread checkBansThread = new Thread(new CheckBans());
@@ -244,6 +251,7 @@ public class CheckValveConsoleRelay
         // Set thread names
         tcpListenerThread.setName("ClientListener");
         udpListenerThread.setName("MessageListener");
+        ctlListenerThread.setName("ControlListener");
         sendConsoleMessageThread.setName("SendConsoleMessage");
         checkConnectionThread.setName("CheckConnection");
         checkBansThread.setName("CheckBans");
@@ -253,6 +261,7 @@ public class CheckValveConsoleRelay
         // Start threads
         tcpListenerThread.start();
         udpListenerThread.start();
+        ctlListenerThread.start();
         sendConsoleMessageThread.start();
         checkConnectionThread.start();
 
@@ -375,7 +384,8 @@ public class CheckValveConsoleRelay
         final String DEFAULT_AUTOBAN_DURATION = "86400";
         final String DEFAULT_CHECK_INTERVAL = "10";
         final String DEFAULT_CLIENT_ADDRESS = "0.0.0.0";
-        final String DEFAULT_CLIENT_PORT = "23456";
+        final String DEFAULT_CLIENT_PORT = "23457";
+        final String DEFAULT_CONTROL_PORT = "34568";
         final String DEFAULT_DEBUG_LEVEL = "0";
         final String DEFAULT_LOG_FILE = "checkvalveconsolerelay.log";
         final String DEFAULT_LOGROTATE_ENABLED = "1";
@@ -385,7 +395,7 @@ public class CheckValveConsoleRelay
         final String DEFAULT_LOGSTATS_INTERVAL = "86400";
         final String DEFAULT_MAX_CLIENTS = "10";
         final String DEFAULT_MESSAGE_ADDRESS = "0.0.0.0";
-        final String DEFAULT_MESSAGE_PORT = "12345";
+        final String DEFAULT_MESSAGE_PORT = "12346";
         final String DEFAULT_PASSWORD = "";
 
         Properties config = new Properties();
@@ -433,6 +443,18 @@ public class CheckValveConsoleRelay
             clientListenPort = Integer.parseInt(DEFAULT_CLIENT_PORT);
             System.out.println();
             System.out.println( "WARNING: Specified value for clientListenPort is invalid, using default (" + DEFAULT_CLIENT_PORT + ")." );
+        }
+
+        try
+        {
+            controlListenPort = Integer.parseInt(config.getProperty("controlListenPort",DEFAULT_CONTROL_PORT).trim());
+            if( controlListenPort < 0 ) throw new NumberFormatException();
+        }
+        catch( NumberFormatException n )
+        {
+            controlListenPort = Integer.parseInt(DEFAULT_CONTROL_PORT);
+            System.out.println();
+            System.out.println( "WARNING: Specified value for controlListenPort is invalid, using default (" + DEFAULT_CONTROL_PORT + ")." );
         }
 
         try
@@ -2080,6 +2102,286 @@ public class CheckValveConsoleRelay
         public void kill()
         {
             this.interrupt();
+        }
+    }
+
+    /*
+     * UDP listener for control commands
+     */
+    private static class ControlListener implements Runnable
+    {
+        private boolean listening = false;
+        private String name = new String();
+        private long id = 0;
+        private DatagramSocket controlListenerSocket;
+
+        public void run()
+        {
+            id = Thread.currentThread().getId();
+            name = Thread.currentThread().getName();
+
+            if( debugLevel >= 3 )
+                logger.debug(3, "Thread started (name=" + name + ", id=" + id + ").");
+
+            for(;;)
+            {
+                try
+                {
+                    runControlListener();
+                }
+                catch( InterruptedException ie )
+                {
+                    if( debugLevel >= 3 )
+                        logger.debug(3, name + " [ID=" + id + "] received an interrupt.");
+
+                    return;
+                }
+                catch( SocketException se )
+                {
+                    if( debugLevel >= 3 )
+                        logger.debug(3, name + " [ID=" + id + "] caught a SocketException.");
+
+                    if( shuttingDown )
+                    {
+                        if( debugLevel >= 3 )
+                            logger.debug(3, name + " [ID=" + id + "] ignored the SocketException (shutdown flag is set).");
+
+                        return;
+                    }
+
+                    //
+                    // If the listening flag is not set then the socket could not be opened
+                    //
+                    if( ! listening )
+                    {
+                        System.err.println();
+
+                        logger.writeln( "[ERROR] Unable to create the control socket." );
+                        System.err.println( "[ERROR] Unable to create the control socket." );
+                        logger.writeln( "[ERROR] " + se.toString() );
+                        System.err.println( "[ERROR] " + se.toString() );
+
+                        if( debugLevel >= 2 )
+                        {
+                            StackTraceElement[] ste = se.getStackTrace();
+
+                            for(int x = 0; x < ste.length; x++)
+                                logger.debug(2, ste[x].toString() );
+                        }
+
+                        if( ! shuttingDown )
+                        {
+                            if( debugLevel >= 2 )
+                                logger.debug(2, "Control listener is calling for the program to shut down.");
+
+                            System.exit(1);
+                        }
+
+                        return;
+                    }
+                    else
+                    {
+                        logger.writeln( "[ERROR] Control listener thread caught an exception:" );
+                        logger.writeln( "[ERROR] " + se.toString() );
+
+                        if( debugLevel >= 2 )
+                        {
+                            StackTraceElement[] ste = se.getStackTrace();
+
+                            for(int x = 0; x < ste.length; x++)
+                                logger.debug(2, ste[x].toString() );
+                        }
+
+                        if( controlListenerSocket.isClosed() )
+                        {
+                            listening = false;
+                            logger.writeln( "[ERROR] The control listener socket closed unexpectedly." );
+                            logger.writeln( "[ERROR] Attempting to restart the control listener." );
+                        }
+                        else
+                        {
+                            logger.writeln( "This exception appears to be non-fatal." );
+                        }
+                    }
+                }
+                catch( Exception e )
+                {
+                    if( debugLevel >= 3 )
+                        logger.debug(3, name + " [ID=" + id + "] caught an exception.");
+
+                    if( shuttingDown )
+                    {
+                        if( debugLevel >= 3 )
+                            logger.debug(3, name + " [ID=" + id + "] ignored the exception (shutdown flag is set).");
+
+                        return;
+                    }
+
+                    logger.writeln( "[ERROR] Control listener thread caught an exception:" );
+                    logger.writeln( "[ERROR] " + e.toString() );
+
+                    if( debugLevel >= 2 )
+                    {
+                        StackTraceElement[] ste = e.getStackTrace();
+
+                        for(int x = 0; x < ste.length; x++)
+                            logger.debug(2, ste[x].toString() );
+                    }
+
+                    if( controlListenerSocket.isClosed() )
+                    {
+                        listening = false;
+                        logger.writeln( "[ERROR] The control listener socket closed unexpectedly." );
+                        logger.writeln( "[ERROR] Attempting to restart the control listener." );
+                    }
+                    else
+                    {
+                        logger.writeln( "This exception appears to be non-fatal." );
+                    }
+                }
+            }
+        }
+
+        private void runControlListener() throws Exception
+        {
+            final int CTL_PACKET_HEADER = 0xFFFFFFFE;
+            final byte CTL_PROTOCOL_VERSION = (byte) 0x01;
+            final byte CTL_PTYPE_STATUS = (byte) 0x06;
+            final byte CTL_PTYPE_SHUTDOWN = (byte) 0x07;
+            final byte CTL_PTYPE_STATUS_RESPONSE = (byte) 0x08;
+            final byte CTL_PTYPE_SHUTDOWN_RESPONSE = (byte) 0x09;
+
+            InetAddress localhost = InetAddress.getByName("127.0.0.1");
+
+            byte reqType;
+            byte reqProtocol;
+            int reqHeader = 0;
+            int connectTimeout = 1000;
+            long connectTimeMillis = 0;
+            long reqTimestamp = 0;
+
+            byte[] dataBytes = new byte[128];
+            ByteBuffer dataBuffer = ByteBuffer.wrap(dataBytes);
+            dataBuffer.order(ByteOrder.BIG_ENDIAN);
+
+            DatagramPacket packet = new DatagramPacket(dataBytes,dataBytes.length);
+            InputStream in;
+
+            if( ! listening )
+            {
+                // Create the UDP listen socket
+                controlListenerSocket = new DatagramSocket(controlListenPort, localhost);
+
+                // Set the listening flag
+                listening = true;
+
+                logger.writeln( "Control listener started; listening for control commands on 127.0.0.1:" + controlListenPort + " (UDP)." );
+            }
+
+            for(;;)
+            {
+                dataBuffer.clear();
+
+                // Create a new open socket for the next connection
+                controlListenerSocket.receive(packet);
+
+                // Get the current time
+                connectTimeMillis = System.currentTimeMillis();
+
+                if( (reqHeader = dataBuffer.getInt()) != CTL_PACKET_HEADER )
+                {
+                    if( debugLevel >= 3 )
+                    {
+                        String exp = "0x" + Integer.toHexString(CTL_PACKET_HEADER).toUpperCase();
+                        String rcv = "0x" + String.format("%8s", Integer.toHexString(reqHeader)).replace(' ','0').toUpperCase();
+                        logger.debug(3, "Control request contains an invalid header (expected " + exp + ", received " + rcv + ").");
+                    }
+
+                    logger.writeln( "Rejecting control request : Invalid packet header." );
+                    continue;
+                }
+
+                reqProtocol = dataBuffer.get();
+                reqTimestamp = dataBuffer.getLong();
+                reqType = dataBuffer.get();
+
+                if( reqTimestamp > connectTimeMillis || reqTimestamp < (connectTimeMillis - 100) ) 
+                {
+                    logger.writeln( "Rejecting control request : Invalid timestamp." );
+                    continue;
+                }
+
+                if( reqType == CTL_PTYPE_STATUS )
+                {
+                    logger.writeln( "Received a status request." );
+
+                    InetAddress remoteAddr = packet.getAddress();
+                    int remotePort = packet.getPort();
+
+                    int uptime = Long.valueOf(((System.currentTimeMillis() - START_TIME)/1000)/60).intValue();
+                    int upDays = uptime/1440;
+                    int upHours = (uptime - (upDays*1440))/60;
+                    int upMinutes = (uptime - (upDays*1440) - (upHours*60));
+                    int totalMem = Long.valueOf(Runtime.getRuntime().totalMemory()/1024).intValue();
+                    int freeMem = Long.valueOf(Runtime.getRuntime().freeMemory()/1024).intValue();
+                    int maxMem = Long.valueOf(Runtime.getRuntime().maxMemory()/1024).intValue();
+                    int usedMem = (totalMem - freeMem);
+                    int numBanned = (autoBanEnabled == 1)?bannedClients.size():0;
+
+                    byte[] outArray = new byte[128];
+                    ByteBuffer outBuffer = ByteBuffer.wrap(outArray);
+                    outBuffer.order(ByteOrder.BIG_ENDIAN);
+
+                    outBuffer.putInt(CTL_PACKET_HEADER);
+                    outBuffer.put(CTL_PROTOCOL_VERSION);
+                    outBuffer.putLong(System.currentTimeMillis());
+                    outBuffer.put(CTL_PTYPE_STATUS_RESPONSE);
+                    outBuffer.putInt(uptime);
+                    outBuffer.putInt(upDays);
+                    outBuffer.putInt(upHours);
+                    outBuffer.putInt(upMinutes);
+                    outBuffer.putInt(totalMem);
+                    outBuffer.putInt(freeMem);
+                    outBuffer.putInt(maxMem);
+                    outBuffer.putInt(usedMem);
+                    outBuffer.putLong(totalPackets);
+                    outBuffer.putLong(relayedPackets);
+                    outBuffer.putInt(acceptedConnections);
+                    outBuffer.putInt(rejectedConnections);
+                    outBuffer.putInt(numBanned);
+                    outBuffer.flip();
+
+                    DatagramPacket outPacket = new DatagramPacket(outBuffer.array(), outBuffer.position(), outBuffer.limit(), remoteAddr, remotePort);
+                    controlListenerSocket.send(outPacket);
+                }
+                else if( reqType == CTL_PTYPE_SHUTDOWN )
+                {
+                    logger.writeln( "Received a shutdown control : Shutting down." );
+
+                    InetAddress remoteAddr = packet.getAddress();
+                    int remotePort = packet.getPort();
+
+                    byte[] outArray = new byte[128];
+                    ByteBuffer outBuffer = ByteBuffer.wrap(outArray);
+                    outBuffer.order(ByteOrder.BIG_ENDIAN);
+
+                    outBuffer.putInt(CTL_PACKET_HEADER);
+                    outBuffer.put(CTL_PROTOCOL_VERSION);
+                    outBuffer.putLong(System.currentTimeMillis());
+                    outBuffer.put(CTL_PTYPE_SHUTDOWN_RESPONSE);
+                    outBuffer.flip();
+
+                    DatagramPacket outPacket = new DatagramPacket(outBuffer.array(), outBuffer.position(), outBuffer.limit(), remoteAddr, remotePort);
+                    controlListenerSocket.send(outPacket);
+
+                    System.exit(0);
+                }
+                else
+                {
+                    logger.writeln( "Rejecting control request : Invalid value." );
+                    continue;
+                }
+            }
         }
     }
 }
