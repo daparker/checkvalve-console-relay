@@ -1,7 +1,7 @@
 #!/bin/bash
 ##
 #
-# Copyright 2010-2013 by David A. Parker <parker.david.a@gmail.com>
+# Copyright 2010-2015 by David A. Parker <parker.david.a@gmail.com>
 # 
 # This file is part of CheckValve, an HLDS/SRCDS query app for Android.
 # 
@@ -32,9 +32,85 @@
 #
 # CHANGE LOG:
 #
-# April 7, 2015
+# April 7, 2015 
 # - Initial release.
 #
+# July 25, 2015
+# - Rewritten based on start script for CheckValve Chat Relay
+# - Determine $BASEDIR automatically
+#
+
+##
+#
+# Store the current working directory
+#
+OLD_PWD=$(pwd)
+
+##
+#
+# Set the CheckValve Console Relay base directory
+#
+THISDIR=$(dirname $0)
+cd ${THISDIR}/../
+BASEDIR=$(pwd)
+cd ${OLD_PWD}
+
+##
+#
+# Default configuration file
+#
+DEF_CONFIG_FILE="checkvalveconsolerelay.properties"
+CONFIG_FILE=${DEF_CONFIG_FILE}
+
+##
+#
+# Default debugging options
+#
+DEF_DEBUG_HOST="localhost"
+DEF_DEBUG_PORT="1044"
+DEBUG="0"
+DEBUG_OPTS=""
+DEBUG_HOST=${DEF_DEBUG_HOST}
+DEBUG_PORT=${DEF_DEBUG_PORT}
+
+##
+#
+# Default minimum heap size for CheckValve Console Relay
+#
+DEF_JVM_MIN_MEM="8m"
+JVM_MIN_MEM=${DEF_JVM_MIN_MEM}
+
+##
+#
+# Default maximum heap size for CheckValve Console Relay
+#
+DEF_JVM_MAX_MEM="16m"
+JVM_MAX_MEM=${DEF_JVM_MAX_MEM}
+
+##
+#
+# JAR and PID files for CheckValve Console Relay
+#
+JARFILE="${BASEDIR}/lib/checkvalveconsolerelay.jar"
+PIDFILE="${BASEDIR}/checkvalveconsolerelay.pid"
+
+# If a bundled JRE is present then use it
+if [ -d ${BASEDIR}/jre ] ; then
+    PATH="${BASEDIR}/jre/bin:${PATH}"
+    export PATH
+
+    # Set JAVA_HOME if it is not already set
+    if [ -z JAVA_HOME ] ; then
+        JAVA_HOME="${BASEDIR}/jre"
+        export JAVA_HOME
+    fi
+fi
+
+##
+#
+# Java executable
+#
+JAVA_BIN=$(which java)
 
 short_usage()
 {
@@ -89,69 +165,6 @@ start_no_debug()
 
     cd ${OLD_PWD}
 }
-
-##
-#
-# CheckValve Console Relay base directory
-#
-BASEDIR="/home/dparker/checkvalveconsolerelay-1.0.0"
-
-##
-#
-# Default configuration file
-#
-DEF_CONFIG_FILE="checkvalveconsolerelay.properties"
-CONFIG_FILE=${DEF_CONFIG_FILE}
-
-##
-#
-# Default debugging options
-#
-DEF_DEBUG_HOST="localhost"
-DEF_DEBUG_PORT="1044"
-DEBUG="0"
-DEBUG_OPTS=""
-DEBUG_HOST=${DEF_DEBUG_HOST}
-DEBUG_PORT=${DEF_DEBUG_PORT}
-
-##
-#
-# Default minimum heap size for CheckValve Console Relay
-#
-DEF_JVM_MIN_MEM="8m"
-JVM_MIN_MEM=${DEF_JVM_MIN_MEM}
-
-##
-#
-# Default maximum heap size for CheckValve Console Relay
-#
-DEF_JVM_MAX_MEM="16m"
-JVM_MAX_MEM=${DEF_JVM_MAX_MEM}
-
-##
-#
-# JAR and PID files for CheckValve Console Relay
-#
-JARFILE="${BASEDIR}/lib/checkvalveconsolerelay.jar"
-PIDFILE="${BASEDIR}/checkvalveconsolerelay.pid"
-
-# If a bundled JRE is present then add it to the PATH
-if [ -d ${BASEDIR}/jre ] ; then
-    PATH="${PATH}:${BASEDIR}/jre/bin"
-    export PATH
-
-    # Set JAVA_HOME if it is not already set
-    if [ -z JAVA_HOME ] ; then
-        JAVA_HOME="${BASEDIR}/jre"
-        export JAVA_HOME
-    fi
-fi
-
-##
-#
-# Java executable
-#
-JAVA_BIN=$(which java)
 
 # Set options from the command line
 while [ "$1" ] ; do
@@ -220,7 +233,19 @@ done
 # Make sure the BASEDIR exists
 if [ ! -d ${BASEDIR} ] ; then
     echo >&2
-    echo "ERROR: The directory ${BASEDIR} does not exist. Please edit the BASEDIR variable in $0 and try again." >&2
+    echo "ERROR: The directory ${BASEDIR} does not exist."
+    echo >&2
+    echo "Please edit the BASEDIR variable in $0 and try again." >&2
+    echo >&2
+    exit 1
+fi
+
+# Make sure the $BASEDIR/lib directory exists
+if [ ! -d ${BASEDIR}/lib ] ; then
+    echo >&2
+    echo "ERROR: The directory ${BASEDIR}/lib does not exist."
+    echo >&2
+    echo "Please edit the BASEDIR variable in $0 and try again." >&2
     echo >&2
     exit 1
 fi
@@ -244,9 +269,10 @@ fi
 # Make sure the 'java' command is in the PATH
 if [ "$JAVA_BIN" = "" ] ; then
     echo >&2
-    echo "ERROR: Unable to locate the 'java' executable.  Please ensure" >&2
-    echo "       the Java Runtime Environment (JRE) is installed and" >&2
-    echo "       the 'java' executable can be found in your PATH." >&2
+    echo "ERROR: Unable to locate the 'java' executable."
+    echo >&2
+    echo "Please ensure the Java Runtime Environment is installed" >&2
+    echo "and the 'java' executable can be found in your PATH." >&2
     echo >&2
     exit 1
 fi
