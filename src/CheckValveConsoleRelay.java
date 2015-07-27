@@ -71,7 +71,7 @@ public class CheckValveConsoleRelay
     final static byte PTYPE_CONNECTION_SUCCESS = (byte) 0x04;
     final static byte PTYPE_MESSAGE_DATA = (byte) 0x05;
     final static long START_TIME = System.currentTimeMillis();
-    final static String PROGRAM_VERSION = "1.0.0";
+    final static String PROGRAM_VERSION = "1.1.0";
     final static String IDENTITY_STRING = "CheckValve Console Relay " + PROGRAM_VERSION;
 
     //
