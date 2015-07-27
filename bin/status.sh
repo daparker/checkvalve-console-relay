@@ -32,8 +32,12 @@
 #
 # CHANGE LOG:
 #
-# July 25, 2015
+# May 4, 2015
 # - Initial release.
+#
+# June 14, 2015
+# - Replaced 'basename' with 'dirname' so setting $BASEDIR works correctly.
+# - Fixed typos which caused syntax errors
 #
 
 ##
@@ -55,14 +59,14 @@ cd ${OLD_PWD}
 #
 # Default configuration file
 #
-DEF_CONFIG_FILE="checkvalveconsolerelay.properties"
+DEF_CONFIG_FILE="${BASEDIR}/checkvalveconsolerelay.properties"
 CONFIG_FILE=${DEF_CONFIG_FILE}
 
 ##
 #
 # JAR file for the CheckValve Console Relay Control
 #
-JARFILE="consolerelayctl.jar"
+JARFILE="${BASEDIR}/lib/consolerelayctl.jar"
 
 # If a bundled JRE is present then use it
 if [ -d ${BASEDIR}/jre ] ; then
@@ -99,22 +103,12 @@ long_usage()
     echo
 }
 
-start_no_debug()
-{
-    cd ${BASEDIR}/lib
-
-    # Start CheckValve Console Relay and save its PID to the PID file
-    ${JAVA_BIN} -jar ${JARFILE} -c ${CONFIG_FILE} status
-
-    cd ${OLD_PWD}
-}
-
 # Set options from the command line
 while [ "$1" ] ; do
     case $(echo "$1" | tr A-Z a-z) in
         '--config')
             if [ ! $2 ] ; then
-                echo "You must supply a value for --config"
+                echo "You must supply a value for $1"
                 short_usage
                 exit 1
             fi
@@ -171,5 +165,8 @@ if [ "$JAVA_BIN" = "" ] ; then
     echo >&2
     exit 1
 fi
+
+${JAVA_BIN} -jar ${JARFILE} --config ${CONFIG_FILE} status
+cd ${OLD_PWD}
 
 exit 0

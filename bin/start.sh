@@ -32,12 +32,27 @@
 #
 # CHANGE LOG:
 #
-# April 7, 2015 
+# November 14, 2013
 # - Initial release.
 #
-# July 25, 2015
-# - Rewritten based on start script for CheckValve Chat Relay
-# - Determine $BASEDIR automatically
+# July 18, 2014
+# - Added $CONFIG_FILE and the '--config' option for specifying the
+#   configuration file.
+#
+# October 30, 2014
+# - Added static default values for variables. 
+# - Added a check for the existance of $BASEDIR.
+#
+# November 3, 2014
+# - Fixed improper PATH order when using a bundled JRE.
+#
+# May 4, 2015
+# - Moved constants and variables to the top of the script.
+# - Set the value of $BASEDIR automatically.
+#
+# June 14, 2015
+# - Replaced 'basename' with 'dirname' so setting $BASEDIR works correctly.
+# - Fixed typos which caused syntax errors
 #
 
 ##

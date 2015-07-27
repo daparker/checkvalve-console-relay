@@ -33,12 +33,14 @@
 #
 # CHANGE LOG:
 #
-# April 7, 2015
+# November 14, 2013
 # - Initial release.
 #
-# July 25, 2015
-# - Rewritten based on stop script for CheckValve Chat Relay.
-# - Determine value of $BASEDIR automatically.
+# May 4, 2015
+# - Set the value of $BASEDIR automatically.
+#
+# June 14, 2015
+# - Replaced 'basename' with 'dirname' so setting $BASEDIR works correctly.
 #
 
 ##
