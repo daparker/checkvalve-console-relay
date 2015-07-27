@@ -29,7 +29,7 @@
  *
  * CHANGE LOG:
  *
- * May 5, 2015
+ * July 27, 2015
  * - Version 1.0.0.
  * - Initial release.
  */
